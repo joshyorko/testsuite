@@ -54,3 +54,12 @@ def test_focused_feature_matches_shard_base_suite():
 
     assert 'suite_base = suite.rsplit("-", 1)[0]' in workflow
     assert 'parts[1] != suite_base' in workflow
+
+
+def test_focused_feature_keeps_vm_copy_and_behave_paths_on_suite_base():
+    workflow = _workflow("e2e.yml")
+
+    assert "suite_dir = suite_base" in workflow
+    assert "feature_args = focused_feature" in workflow
+    assert 'SCP "tests/${SUITE_DIR}"' in workflow
+    assert 'REMOTE_FEATURE_ARGS="${FEATURE_ARGS//tests\\//\\/tmp\\/bluefin-tests\\/tests\\/}"' in workflow

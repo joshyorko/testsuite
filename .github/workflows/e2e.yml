@@ -175,6 +175,7 @@ jobs:
                       "feature must be one existing tests/<suite>/features/*.feature "
                       "path matching the selected suite"
                   )
+              suite_dir = suite_base
               feature_args = focused_feature
 
           if not focused_feature and "-" in suite:
