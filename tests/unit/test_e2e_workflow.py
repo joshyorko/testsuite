@@ -37,3 +37,13 @@ def test_manual_runs_checkout_the_selected_fork_ref_without_changing_callers():
     assert 'default: "projectbluefin/testsuite"' in reusable
     assert "repository: ${{ inputs.test_repository }}" in reusable
     assert "test_repository: ${{ github.repository }}" in manual
+
+
+def test_focused_feature_diagnostic_is_validated_and_bounded():
+    reusable = _workflow("e2e.yml")
+    manual = _workflow("manual.yml")
+
+    assert 'feature:' in reusable
+    assert 'feature:' in manual
+    assert 'FOCUSED_FEATURE' in reusable
+    assert 'timeout --signal=TERM --kill-after=10s 180s' in reusable

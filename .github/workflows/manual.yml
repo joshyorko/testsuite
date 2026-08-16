@@ -16,6 +16,10 @@ on:
         description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,lifecycle"
         required: true
         default: "smoke"
+      feature:
+        description: "Optional single feature path (for example tests/smoke/features/firefox.feature)"
+        required: false
+        default: ""
       chunked_enabled:
         description: "Enable @zstd_chunked scenarios in the lifecycle suite"
         required: false
@@ -35,6 +39,7 @@ jobs:
     with:
       image: ${{ github.event.inputs.image }}
       suites: ${{ github.event.inputs.suites }}
+      feature: ${{ github.event.inputs.feature }}
       chunked_enabled: ${{ github.event.inputs.chunked_enabled == 'true' }}
       # workflow_dispatch sees the branch selected in the Actions UI. Keep
       # branch resolution here; github.ref_name inside e2e.yml resolves to main.

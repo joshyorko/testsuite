@@ -48,6 +48,14 @@ Load when: integrating the testsuite into another repo's CI (e.g. `<image-org>/d
 4. Validate the workflow file parses, then run the repo's required local checks before committing.
 5. Write back any non-obvious workflow pattern discovered during the change in this skill file.
 
+## Focused feature diagnostics
+
+The manual workflow accepts an optional `feature` path such as
+`tests/smoke/features/firefox.feature`. It must be passed alongside the matching
+`suites` value and is validated against the checked-out tree before the VM run.
+Focused runs apply a 180-second timeout to behave, while leaving normal suite
+dispatches unchanged.
+
 ## Heredocs in YAML `run` blocks
 
 Keep heredoc delimiters at the YAML literal block's minimum indentation.

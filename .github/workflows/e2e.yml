@@ -29,6 +29,11 @@ on:
         description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,common,lifecycle,installer,kde-smoke"
         type: string
         default: "smoke"
+      feature:
+        description: "Optional single feature path relative to the testsuite checkout (diagnostic use)"
+        type: string
+        default: ""
+        required: false
       skip_native_apps:
         description: "Skip @native_app scenarios (non-Flatpak app tests: Calculator, Files, Settings, etc.)"
         type: boolean
@@ -140,6 +145,8 @@ jobs:
       # the specific feature files for this shard (empty = run all).
       - name: Resolve suite shard
         id: shard
+        env:
+          FOCUSED_FEATURE: ${{ inputs.feature }}
         run: |
           python3 - <<'PY'
           import glob
@@ -147,10 +154,29 @@ jobs:
           import os
 
           suite = os.environ["SUITE"]
+          focused_feature = os.environ.get("FOCUSED_FEATURE", "").strip()
           suite_dir = suite
           feature_args = ""
 
-          if "-" in suite:
+          if focused_feature:
+              parts = focused_feature.split("/")
+              if (
+                  len(parts) != 4
+                  or parts[0] != "tests"
+                  or parts[2] != "features"
+                  or not parts[3].endswith(".feature")
+                  or ".." in parts
+                  or any(not part for part in parts)
+                  or parts[1] != suite
+                  or not os.path.isfile(focused_feature)
+              ):
+                  raise SystemExit(
+                      "feature must be one existing tests/<suite>/features/*.feature "
+                      "path matching the selected suite"
+                  )
+              feature_args = focused_feature
+
+          if not focused_feature and "-" in suite:
               base, label = suite.rsplit("-", 1)
               if base in {"smoke", "common", "kde-smoke"} and label in {"a", "b"}:
                   files = sorted(glob.glob(f"tests/{base}/features/*.feature"))
@@ -169,13 +195,17 @@ jobs:
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
               print(f"suite_dir={suite_dir}", file=fh)
               print(f"feature_args={feature_args}", file=fh)
+              print(f"focused_feature={focused_feature}", file=fh)
               print(f"screenshot_suite={screenshot_suite}", file=fh)
           PY
 
       - name: Export suite shard environment
+        env:
+          FOCUSED_FEATURE: ${{ inputs.feature }}
         run: |
           echo "SUITE_DIR=${{ steps.shard.outputs.suite_dir }}" >> "$GITHUB_ENV"
           echo "FEATURE_ARGS=${{ steps.shard.outputs.feature_args }}" >> "$GITHUB_ENV"
+          echo "FOCUSED_FEATURE=${FOCUSED_FEATURE}" >> "$GITHUB_ENV"
           echo "SCREENSHOT_SUITE=${{ steps.shard.outputs.screenshot_suite }}" >> "$GITHUB_ENV"
 
       # flatpak-preinstall.service is masked in KERNEL_ARGS, so Bluefin-family GUI
@@ -1175,6 +1205,11 @@ jobs:
         run: |
           mkdir -p results
           BEHAVE_RC=0
+          BEHAVE_TIMEOUT_PREFIX=""
+          if [[ -n "${FOCUSED_FEATURE}" ]]; then
+            BEHAVE_TIMEOUT_PREFIX="timeout --signal=TERM --kill-after=10s 180s"
+            echo "Focused feature diagnostic enabled: ${FOCUSED_FEATURE} (180s timeout)"
+          fi
           BEHAVE_TAG_ARGS="--tags ~quarantine --tags ~hardware_blocked"
           [[ "${SKIP_NATIVE_APPS}" == "true" ]] && BEHAVE_TAG_ARGS="${BEHAVE_TAG_ARGS} --tags ~native_app"
 
@@ -1222,7 +1257,7 @@ jobs:
             SSH_KEY=/tmp/vm_key \
             SSH_PORT=2222 \
             ZSTD_CHUNKED="${ZSTD_CHUNKED}" \
-            python3 tests/shared/behave_retry.py ${LOCAL_FEATURE_ARGS} \
+            ${BEHAVE_TIMEOUT_PREFIX} python3 tests/shared/behave_retry.py ${LOCAL_FEATURE_ARGS} \
               --format json.pretty --outfile results/results.json \
               --no-capture ${BEHAVE_TAG_ARGS} || BEHAVE_RC=$?
           elif [[ "${SUITE_DIR}" == kde* ]]; then
@@ -1234,7 +1269,7 @@ jobs:
               KDE_FEATURE_ARGS="tests/${SUITE_DIR}/features/"
             fi
             mkdir -p results
-            sudo podman run --rm \
+            ${BEHAVE_TIMEOUT_PREFIX} sudo podman run --rm \
               --network=host \
               -v "$(pwd):/tmp/bluefin-tests:ro" \
               -v "$(pwd)/results:/tmp/results" \
@@ -1280,7 +1315,7 @@ jobs:
               # --pid=host: qecore reads GNOME session env from /proc/<pid>/environ.
               # --privileged: AT-SPI socket access + uinput device passthrough.
               # --network host: D-Bus session bus traffic reaches ponytail daemon.
-              podman run --userns=keep-id --rm \
+                ${BEHAVE_TIMEOUT_PREFIX} podman run --userns=keep-id --rm \
                 --pid=host \
                 --privileged \
                 --network host \
