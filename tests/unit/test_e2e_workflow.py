@@ -47,3 +47,10 @@ def test_focused_feature_diagnostic_is_validated_and_bounded():
     assert 'feature:' in manual
     assert 'FOCUSED_FEATURE' in reusable
     assert 'timeout --signal=TERM --kill-after=10s 180s' in reusable
+
+
+def test_focused_feature_matches_shard_base_suite():
+    workflow = _workflow("e2e.yml")
+
+    assert 'suite_base = suite.rsplit("-", 1)[0]' in workflow
+    assert 'parts[1] != suite_base' in workflow

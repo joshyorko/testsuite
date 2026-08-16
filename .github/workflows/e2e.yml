@@ -154,6 +154,7 @@ jobs:
           import os
 
           suite = os.environ["SUITE"]
+          suite_base = suite.rsplit("-", 1)[0] if "-" in suite else suite
           focused_feature = os.environ.get("FOCUSED_FEATURE", "").strip()
           suite_dir = suite
           feature_args = ""
@@ -167,7 +168,7 @@ jobs:
                   or not parts[3].endswith(".feature")
                   or ".." in parts
                   or any(not part for part in parts)
-                  or parts[1] != suite
+                  or parts[1] != suite_base
                   or not os.path.isfile(focused_feature)
               ):
                   raise SystemExit(
