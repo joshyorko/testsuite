@@ -86,6 +86,10 @@ def launch_firefox_via_command(context) -> None:
     context.firefox_launch_target = launch_background(
         FIREFOX_LAUNCH_TARGETS, env=FIREFOX_A11Y_ENV
     )
+    print(
+        f"FIREFOX_DIAGNOSTIC launch_target={context.firefox_launch_target}",
+        flush=True,
+    )
 
 
 def _window_candidates(context):
@@ -125,10 +129,51 @@ def _firefox_window(context, *, require_a11y_tree: bool = True):
     raise AssertionError(f"{A11Y_TREE_EMPTY_MESSAGE} (window roles seen: {roles})")
 
 
+def _bounded_a11y_snapshot(
+    root,
+    *,
+    max_depth: int = 3,
+    max_nodes: int = 100,
+    timeout_seconds: float = 2.0,
+) -> str:
+    """Describe a small AT-SPI subtree without turning diagnostics into a hang."""
+    deadline = monotonic() + timeout_seconds
+    pending = [(root, 0)]
+    rows = []
+    status = "complete"
+
+    while pending and len(rows) < max_nodes:
+        if monotonic() >= deadline:
+            status = "timeout"
+            break
+        node, depth = pending.pop(0)
+        try:
+            role = node.roleName
+            name = node.name or ""
+            children = list(node.children) if depth < max_depth else []
+        except Exception as exc:  # noqa: BLE001
+            rows.append(f"depth={depth} error={type(exc).__name__}:{exc}")
+            status = "error"
+            continue
+        rows.append(f"depth={depth} role={role!r} name={name!r}")
+        pending.extend((child, depth + 1) for child in children)
+
+    if pending and status == "complete":
+        status = "node-limit"
+    return f"status={status} nodes={len(rows)} [{'; '.join(rows)}]"
+
+
 def _address_bar(context):
-    bars = _firefox_window(context).findChildren(lambda n: n.roleName == "entry" and n.showing)
+    window = _firefox_window(context)
+    bars = window.findChildren(lambda n: n.roleName == "entry" and n.showing)
     matches = [n for n in bars if "address" in (n.name or "").lower()]
-    assert matches or bars, "Firefox address bar not found"
+    if not (matches or bars):
+        launch_target = getattr(context, "firefox_launch_target", "unknown")
+        raise AssertionError(
+            "Firefox address bar not found; "
+            f"launch_target={launch_target}; "
+            f"atspi_tree={_bounded_a11y_snapshot(window)}"
+        )
     return (matches or bars)[0]
 
 

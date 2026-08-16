@@ -333,6 +333,11 @@ Symptom when this is missing: the application appears in the AT-SPI tree but its
 window node has **no descendants** — no `entry`, `tool bar`, or `page tab list`.
 Steps then fail late with confusing messages such as "address bar not found".
 
+When diagnosing that boundary, print the launch label returned by
+`launch_background()` and include a failure-only AT-SPI snapshot. Bound the
+snapshot by depth, node count, and elapsed time; report only role and name so a
+diagnostic cannot replace the original hang with an unbounded tree traversal.
+
 ## Window-role checks must prove the subtree is populated
 
 

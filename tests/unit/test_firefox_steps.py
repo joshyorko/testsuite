@@ -173,6 +173,19 @@ class TestFirefoxA11yEnv:
         _, kwargs = m.launch_background.call_args
         assert kwargs["env"] == m.FIREFOX_A11Y_ENV
 
+    def test_launch_reports_selected_target(self, capsys):
+        m = _import_firefox_steps()
+        m.launch_background.return_value = "flatpak:org.mozilla.firefox"
+        context = MagicMock()
+
+        m.launch_firefox_via_command(context)
+
+        assert context.firefox_launch_target == "flatpak:org.mozilla.firefox"
+        assert (
+            "FIREFOX_DIAGNOSTIC launch_target=flatpak:org.mozilla.firefox"
+            in capsys.readouterr().out
+        )
+
 
 # ---------------------------------------------------------------------------
 # _firefox_window — false-pass guard
@@ -239,6 +252,27 @@ class TestFirefoxWindow:
         context.firefox.instance = _FakeNode("application", children=[hidden])
         with pytest.raises(AssertionError, match="main window not found"):
             m._firefox_window(context)
+
+    def test_missing_address_bar_reports_bounded_tree_and_launch_target(self):
+        import pytest  # noqa: PLC0415
+        m = _import_firefox_steps()
+        window = _FakeNode(
+            "frame",
+            children=[_FakeNode("push button"), _FakeNode("tool bar")],
+        )
+        window.name = "Mozilla Firefox"
+        window.children[0].name = "Reload"
+        window.children[1].name = "Navigation"
+        context = self._context_with(m, window)
+        context.firefox_launch_target = "flatpak:org.mozilla.firefox"
+
+        with pytest.raises(AssertionError) as excinfo:
+            m._address_bar(context)
+
+        message = str(excinfo.value)
+        assert "launch_target=flatpak:org.mozilla.firefox" in message
+        assert "role='push button' name='Reload'" in message
+        assert "role='tool bar' name='Navigation'" in message
 
 
 class TestLaunchTargetOrdering:
