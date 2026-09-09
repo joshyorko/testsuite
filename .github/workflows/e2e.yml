@@ -1365,9 +1365,9 @@ jobs:
               "${RUNNER_IMAGE}" \
               "python3 /tmp/bluefin-tests/tests/shared/behave_retry.py ${KDE_FEATURE_ARGS} --format json.pretty --outfile /tmp/results/results.json --no-capture ${BEHAVE_TAG_ARGS}" || BEHAVE_RC=$?
           else
-            SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+            SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=no -o ServerAliveInterval=10 -o ServerAliveCountMax=6 -o ConnectTimeout=30"
             SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
-            SCP="scp -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ControlPath=/tmp/ssh-ctrl-%C -P 2222 -r"
+            SCP="scp -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -P 2222 -r"
 
             # Copy into tests/ subdir so 'from tests.shared import ...' resolves.
             # PYTHONPATH=/tmp/bluefin-tests exposes the tests package to behave.
