@@ -1613,8 +1613,8 @@ jobs:
             desktop-screenshot.png:image/png
 
           # Push image-slug-specific tag so publish-to-pages can pull without metadata artifacts.
-          # Slug: strip ghcr.io/<org>/, replace : with - (e.g. bluefin-testing)
-          IMAGE_SLUG=$(echo "${BASE_IMAGE}" | sed 's|ghcr.io/[^/]*/||' | tr ':' '-')
+          # Slug: strip ghcr.io/<org>/, replace : and @ with - (e.g. bluefin-testing)
+          IMAGE_SLUG=$(echo "${BASE_IMAGE}" | sed 's|ghcr.io/[^/]*/||' | tr ':@' '--')
           # Push both the screenshot AND results.json if it exists
           ORAS_FILES="desktop-screenshot.png:image/png"
           if [[ -f results/results.json ]]; then
